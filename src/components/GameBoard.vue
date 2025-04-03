@@ -463,6 +463,16 @@
           return;
         }
 
+        // Check if the current player can make any moves
+        if (!this.canPlayerMove()) {
+          console.log("Current player has no valid moves, passing turn");
+          this.connection.invoke("PassTurn", this.roomId).catch(err => {
+            console.error("Error passing turn:", err);
+            this.errorMessage = "Failed to pass turn.";
+          });
+          return;
+        }
+
         // Movement phase logic
         const currentPlayerToken = this.gameState.currentPlayer;
         
@@ -659,6 +669,41 @@
       // Update the template phase check
       isPlacementPhase() {
         return this.gameState.CurrentPhase === this.phases.PLACEMENT;
+      },
+
+      canPlayerMove() {
+        if (!this.gameState.Board || this.gameState.CurrentPhase === this.phases.PLACEMENT) {
+          return true;
+        }
+
+        const currentPlayer = this.gameState.currentPlayer;
+        const playerTokenCount = currentPlayer === "W" 
+          ? this.gameState.WhiteTokensOnBoard 
+          : this.gameState.BlackTokensOnBoard;
+
+        // Check each position on the board
+        for (let pos = 0; pos < this.gameState.Board.length; pos++) {
+          // If we find a token belonging to the current player
+          if (this.gameState.Board[pos] === currentPlayer) {
+            // In flying phase or when player has 3 tokens, they can move anywhere
+            if (this.gameState.CurrentPhase === this.phases.FLYING || playerTokenCount <= 3) {
+              // Check if there's at least one empty spot
+              if (this.gameState.Board.includes(" ")) {
+                return true;
+              }
+            } else {
+              // Check adjacent positions
+              const adjacentPositions = this.adjacencyMap[pos];
+              // If any adjacent position is empty, the player can move
+              if (adjacentPositions.some(adjPos => this.gameState.Board[adjPos] === " ")) {
+                return true;
+              }
+            }
+          }
+        }
+        
+        // If we get here, no valid moves were found
+        return false;
       }
     }
   };
